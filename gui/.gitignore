@@ -1,0 +1,32 @@
+# Qt生成的文件
+*.pro.user
+*.pro.user.*
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+
+# 编译生成的文件
+*.o
+*.obj
+*.exe
+PlateQuerySystem
+*.dll
+*.so
+*.dylib
+
+# 构建目录
+build/
+Makefile
+*.make
+
+# Qt Creator
+*.autosave
+
+# 临时文件
+*~
+*.swp
+*.bak
+
