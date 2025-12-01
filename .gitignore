@@ -1,0 +1,37 @@
+# Build artifacts
+build/
+*/build/
+cmake-build*/
+
+# CMake cache
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Qt autogen
+PlateQuerySystem_autogen/
+gui/PlateQuerySystem_autogen/
+*.autogen/
+
+# Object files / libs / executables
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+plate_cli
+plate_tests
+PlateQuerySystem
+
+# IDE / Editor
+.vscode/
+.idea/
+*.user
+*.pro.user
+*.DS_Store
+*.swp
+
+
