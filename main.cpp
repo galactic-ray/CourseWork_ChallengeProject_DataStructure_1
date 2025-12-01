@@ -30,8 +30,8 @@ int main() {
             UI::showError("输入非法，请重新输入。");
             UI::pause();
             continue;
-        }
-        
+}
+
         cin.ignore(); // 清除换行符
         
         switch (choice) {
@@ -39,13 +39,13 @@ int main() {
                 UI::printTitle("手工录入车牌记录");
                 string plate, city, owner;
                 
-                cout << "请输入车牌号(7位，数字和字母混排，如 01B7238)：";
+        cout << "请输入车牌号(7位，数字和字母混排，如 01B7238)：";
                 getline(cin, plate);
-                
-                cout << "请输入城市名：";
+
+        cout << "请输入城市名：";
                 getline(cin, city);
-                
-                cout << "请输入车主姓名：";
+
+        cout << "请输入车主姓名：";
                 getline(cin, owner);
                 
                 if (db.addRecord(plate, city, owner)) {
@@ -53,8 +53,8 @@ int main() {
                 }
                 UI::pause();
                 break;
-            }
-            
+    }
+
             case 2: { // 从文件导入
                 UI::printTitle("从文件导入车牌记录");
                 string filename = UI::getInput("请输入文件名：");
@@ -86,7 +86,7 @@ int main() {
                 db.showAllRecords();
                 UI::pause();
                 break;
-            }
+        }
             
             case 5: { // 修改记录
                 UI::printTitle("修改车牌记录");
@@ -101,7 +101,7 @@ int main() {
                     }
                 } else {
                     UI::showError("未找到该车牌号！");
-                }
+            }
                 UI::pause();
                 break;
             }
@@ -125,7 +125,7 @@ int main() {
                 }
                 UI::pause();
                 break;
-            }
+        }
             
             case 7: { // 基数排序
                 UI::printTitle("链式基数排序");
@@ -138,7 +138,7 @@ int main() {
                 UI::pause();
                 break;
             }
-            
+
             case 8: { // 折半查找
                 UI::printTitle("折半查找车牌");
                 string plate = UI::getInput("请输入要查找的车牌号：");
@@ -163,7 +163,7 @@ int main() {
                 auto results = db.searchByCity(city);
                 if (results.empty()) {
                     UI::showError("未找到该城市的记录！");
-                } else {
+        } else {
                     UI::showSuccess("找到 " + to_string(results.size()) + " 条记录：");
                     cout << "\n" << string(50, '=') << endl;
                     cout << left << setw(12) << "车牌号"
@@ -177,12 +177,12 @@ int main() {
                 }
                 UI::pause();
                 break;
-            }
+        }
             
             case 10: { // 前缀查询
                 UI::printTitle("车牌前缀模糊查询");
                 string prefix = UI::getInput("请输入要查询的车牌前缀（1~7 位，如 01B）：");
-                if (prefix.empty() || prefix.size() > 7) {
+        if (prefix.empty() || prefix.size() > 7) {
                     UI::showError("前缀长度不合法！");
                 } else {
                     auto results = db.prefixSearch(prefix);
@@ -272,7 +272,7 @@ int main() {
                 UI::printTitle("清空所有数据");
                 string confirm = UI::getInput("确认清空所有数据？此操作不可恢复！(Y/N)：");
                 if (confirm == "Y" || confirm == "y") {
-                    db.clearAll();
+                db.clearAll();
                     UI::showSuccess("已清空所有数据。");
                 } else {
                     UI::showInfo("已取消操作。");

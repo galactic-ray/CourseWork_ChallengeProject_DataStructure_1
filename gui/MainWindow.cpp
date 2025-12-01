@@ -43,8 +43,8 @@ void MainWindow::setupUI()
     
     inputLayout->addWidget(new QLabel("车牌号:"), 0, 0);
     plateEdit = new QLineEdit(this);
-    plateEdit->setPlaceholderText("例如: 01B7238");
-    plateEdit->setMaxLength(7);
+    plateEdit->setPlaceholderText("例如: 辽B7238A (辽+字母+5位编号,编号不含I和O)");
+    plateEdit->setMaxLength(9); // UTF-8编码：辽(3字节)+字母(1字节)+5字符(5字节)=9字节
     inputLayout->addWidget(plateEdit, 0, 1);
     
     inputLayout->addWidget(new QLabel("城市:"), 1, 0);
@@ -83,7 +83,11 @@ void MainWindow::setupUI()
     
     searchLayout->addWidget(new QLabel("车牌号查找:"));
     searchEdit = new QLineEdit(this);
-    searchEdit->setPlaceholderText("输入完整车牌号");
+    searchEdit->setPlaceholderText("输入完整车牌号 (需先排序)");
+    searchEdit->setToolTip("折半查找（二分查找）：\n"
+                          "1. 先点击\"链式基数排序\"对车牌排序\n"
+                          "2. 然后输入完整车牌号进行精确查找\n"
+                          "3. 查找速度快，时间复杂度O(log n)");
     searchLayout->addWidget(searchEdit);
     
     QHBoxLayout* searchBtnLayout = new QHBoxLayout();
@@ -95,7 +99,11 @@ void MainWindow::setupUI()
     
     searchLayout->addWidget(new QLabel("前缀查找:"));
     prefixEdit = new QLineEdit(this);
-    prefixEdit->setPlaceholderText("例如: 01B");
+    prefixEdit->setPlaceholderText("例如: 辽B72 (输入车牌前几位)");
+    prefixEdit->setToolTip("前缀查找：输入车牌的前几个字符进行模糊匹配\n"
+                          "示例：\n"
+                          "• 输入\"辽B\"查找所有辽B开头的车牌\n"
+                          "• 输入\"辽B72\"查找所有辽B72开头的车牌");
     searchLayout->addWidget(prefixEdit);
     
     searchLayout->addWidget(new QLabel("城市查找:"));
@@ -192,8 +200,10 @@ void MainWindow::setupUI()
     connect(saveFileBtn, &QPushButton::clicked, this, &MainWindow::onSaveToFile);
     connect(exportCSVBtn, &QPushButton::clicked, this, &MainWindow::onExportToCSV);
     connect(clearBtn, &QPushButton::clicked, this, &MainWindow::onClearAll);
-    connect(tableWidget, &QTableWidget::itemDoubleClicked, this, &MainWindow::onTableDoubleClick);
+    connect(tableWidget, &QTableWidget::cellDoubleClicked, this, &MainWindow::onTableDoubleClick);
     connect(tableWidget, &QTableWidget::itemSelectionChanged, this, &MainWindow::onTableSelectionChanged);
+    connect(plateEdit, &QLineEdit::textChanged, this, &MainWindow::onPlateTextChanged);
+    connect(cityEdit, &QLineEdit::textChanged, this, &MainWindow::onCityTextChanged);
     
     // 布局
     mainLayout->addLayout(leftLayout, 1);
@@ -312,6 +322,32 @@ void MainWindow::onAddRecord()
         return;
     }
     
+    // 验证车牌格式
+    if (!Utils::isValidPlate(plate.toStdString())) {
+        showMessage("车牌号格式错误！\n格式应为：辽+字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)\n例如：辽B7238A", true);
+        plateEdit->setFocus();
+        return;
+    }
+    
+    // 验证车牌字母和城市是否匹配
+    if (!Utils::validatePlateCityMatch(plate.toStdString(), city.toStdString())) {
+        // 从车牌中提取字母（跳过"辽"字）
+        char plateLetter = Utils::extractPlateLetter(plate.toStdString());
+        
+        QString expectedCity = QString::fromStdString(Utils::getCityByPlateLetter(plateLetter));
+        QString message;
+        if (expectedCity.isEmpty()) {
+            message = QString("车牌字母 '%1' 无效！有效的车牌字母为: A,B,C,D,E,F,G,H,J,K,L,M,N,P").arg(plateLetter);
+        } else {
+            message = QString("车牌字母 '%1' 对应城市应为 '%2'，但您输入的是 '%3'。\n是否仍要添加？").arg(plateLetter).arg(expectedCity).arg(city);
+            int ret = QMessageBox::question(this, "城市不匹配", message, 
+                                           QMessageBox::Yes | QMessageBox::No);
+            if (ret == QMessageBox::No) {
+                return;
+            }
+        }
+    }
+    
     if (database->addRecord(plate.toStdString(), city.toStdString(), owner.toStdString())) {
         showMessage("添加成功！");
         plateEdit->clear();
@@ -320,7 +356,7 @@ void MainWindow::onAddRecord()
         refreshTable();
         updateStatusBar(QString("当前记录数: %1").arg(database->getRecordCount()));
     } else {
-        showMessage("添加失败！车牌号格式错误或已存在。", true);
+        showMessage("添加失败！车牌号已存在。", true);
     }
 }
 
@@ -356,9 +392,15 @@ void MainWindow::onShowAllRecords()
 
 void MainWindow::onModifyRecord()
 {
-    QString plate = plateEdit->text().trimmed().toUpper();
+    QString plate = plateEdit->text().trimmed();
     if (plate.isEmpty()) {
         showMessage("请输入要修改的车牌号！", true);
+        return;
+    }
+    
+    // 验证车牌格式
+    if (!Utils::isValidPlate(plate.toStdString())) {
+        showMessage("车牌号格式错误！格式应为：辽+字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)", true);
         return;
     }
     
@@ -374,6 +416,21 @@ void MainWindow::onModifyRecord()
     if (city.isEmpty() || owner.isEmpty()) {
         showMessage("请输入新的城市和车主信息！", true);
         return;
+    }
+    
+    // 验证车牌字母和城市是否匹配
+    if (!Utils::validatePlateCityMatch(plate.toStdString(), city.toStdString())) {
+        char plateLetter = Utils::extractPlateLetter(plate.toStdString());
+        
+        QString expectedCity = QString::fromStdString(Utils::getCityByPlateLetter(plateLetter));
+        if (!expectedCity.isEmpty()) {
+            QString message = QString("车牌字母 '%1' 对应城市应为 '%2'，但您输入的是 '%3'。\n是否仍要修改？").arg(plateLetter).arg(expectedCity).arg(city);
+            int ret = QMessageBox::question(this, "城市不匹配", message, 
+                                           QMessageBox::Yes | QMessageBox::No);
+            if (ret == QMessageBox::No) {
+                return;
+            }
+        }
     }
     
     if (database->modifyRecord(plate.toStdString(), city.toStdString(), owner.toStdString())) {
@@ -464,22 +521,83 @@ void MainWindow::onCitySearch()
 
 void MainWindow::onPrefixSearch()
 {
-    QString prefix = prefixEdit->text().trimmed().toUpper();
+    QString prefix = prefixEdit->text().trimmed();
+    
+    // 如果前缀输入框为空，尝试从查找输入框获取
     if (prefix.isEmpty()) {
-        prefix = searchEdit->text().trimmed().toUpper();
+        prefix = searchEdit->text().trimmed();
     }
     
+    // 如果还是为空，提示用户
     if (prefix.isEmpty()) {
-        showMessage("请输入车牌前缀！", true);
+        showMessage("请输入车牌前缀！\n\n前缀查找说明：\n"
+                   "前缀查找可以根据车牌的前几个字符进行模糊匹配。\n\n"
+                   "输入格式：必须以\"辽\"开头\n"
+                   "• 输入\"辽B\"：查找所有以\"辽B\"开头的车牌\n"
+                   "• 输入\"辽B72\"：查找所有以\"辽B72\"开头的车牌\n"
+                   "• 输入\"辽B7238\"：查找所有以\"辽B7238\"开头的车牌\n\n"
+                   "用途：当您只记得车牌的前几位时，可以使用前缀查找快速找到相关记录。", true);
         return;
     }
     
+    prefix = prefix.toUpper();
+    
+    // 必须以“辽”开头
+    if (!prefix.startsWith(QStringLiteral("辽"))) {
+        showMessage("前缀格式错误！\n\n"
+                    "前缀必须以\"辽\"开头，后面可以跟字母(A-Z,排除I和O)和数字。\n\n"
+                    "正确示例：\n"
+                    "• 辽B\n"
+                    "• 辽B72\n"
+                    "• 辽B7238\n\n"
+                    "错误示例：\n"
+                    "• B72（缺少\"辽\"）\n"
+                    "• 01B（格式不正确）", true);
+        return;
+    }
+    
+    QString suffix = prefix.mid(1); // 取除“辽”外的部分
+    suffix = suffix.toUpper();
+    
+    // 最多只能有 6 个字符（车牌“辽+字母+5位编号”）
+    if (suffix.length() > 6) {
+        suffix = suffix.left(6);
+    }
+    
+    // 验证后续字符
+    for (int i = 0; i < suffix.length(); ++i) {
+        QChar c = suffix[i];
+        if (!c.isDigit() && !(c >= 'A' && c <= 'Z')) {
+            showMessage(QString("前缀包含非法字符：%1\n\n"
+                                "允许的字符：数字0-9，字母A-Z（排除I和O）").arg(c), true);
+            return;
+        }
+        if (c == 'I' || c == 'O') {
+            showMessage(QString("前缀不能包含字母 %1（避免与数字1和0混淆）").arg(c), true);
+            return;
+        }
+    }
+    
+    // 重新组合前缀（确保格式为“辽+后缀”）
+    prefix = QStringLiteral("辽") + suffix;
+    
     auto results = database->prefixSearch(prefix.toStdString());
     if (results.empty()) {
-        showMessage(QString("未找到以 %1 为前缀的车牌").arg(prefix), true);
+        showMessage(QString("未找到以 %1 为前缀的车牌\n\n提示：\n"
+                          "请检查输入的前缀是否正确。\n"
+                          "前缀必须以\"辽\"开头，后面可以跟字母(A-Z,排除I和O)和数字。\n\n"
+                          "示例：\n"
+                          "• 辽B\n"
+                          "• 辽B72\n"
+                          "• 辽B7238").arg(prefix), true);
     } else {
         showRecordInTable(results);
-        showMessage(QString("找到 %1 条记录").arg(results.size()));
+        QString message = QString("前缀查找成功！\n\n"
+                                "查找前缀：%1\n"
+                                "找到 %2 条记录\n\n"
+                                "说明：前缀查找会匹配所有以输入前缀开头的车牌号。").arg(prefix).arg(results.size());
+        showMessage(message);
+        updateStatusBar(QString("前缀查找: %1，找到 %2 条记录").arg(prefix).arg(results.size()));
     }
 }
 
@@ -512,14 +630,35 @@ void MainWindow::onCityStatistics()
 
 void MainWindow::onPerformanceStats()
 {
-    database->showPerformanceStats();
-    updateStatusBar("性能统计已显示");
+    std::string stats = database->getPerformanceStats();
+    infoText->append(QString::fromStdString(stats));
+    infoText->append("\n");
+    
+    // 同时显示在消息框中
+    QString statsQStr = QString::fromStdString(stats);
+    QMessageBox::information(this, "性能统计", statsQStr);
+    
+    updateStatusBar("性能统计已显示在信息面板和对话框中");
 }
 
 void MainWindow::onValidateData()
 {
-    database->validateData();
-    updateStatusBar("数据验证完成");
+    std::string result = database->getValidateDataResult();
+    infoText->append(QString::fromStdString(result));
+    infoText->append("\n");
+    
+    // 同时显示在消息框中
+    QString resultQStr = QString::fromStdString(result);
+    
+    // 判断验证是否通过
+    bool isValid = database->validateData();
+    if (isValid) {
+        QMessageBox::information(this, "数据验证", resultQStr);
+        updateStatusBar("数据验证完成：✓ 数据完整性通过");
+    } else {
+        QMessageBox::warning(this, "数据验证", resultQStr + "\n\n警告：发现数据问题，请检查！");
+        updateStatusBar("数据验证完成：✗ 发现数据问题");
+    }
 }
 
 void MainWindow::onSaveToFile()
@@ -589,9 +728,120 @@ void MainWindow::onHelp()
 {
     QMessageBox::information(this, "使用帮助",
         "1. 数据录入：填写车牌号、城市、车主信息后点击添加\n"
-        "2. 查找功能：输入车牌号进行查找，或选择城市进行城市查找\n"
+        "   - 输入车牌号时，系统会自动根据第一个字母填充对应城市\n"
+        "   - 系统会验证车牌字母与城市是否匹配\n"
+        "2. 查找功能：\n"
+        "   - 折半查找：输入完整车牌号进行精确查找\n"
+        "   - 前缀查找：输入车牌前缀（如：辽B72）进行模糊查找\n"
+        "   - 城市查找：选择或输入城市名查找该城市所有车牌\n"
         "3. 排序功能：点击基数排序对车牌进行排序\n"
         "4. 文件操作：可以导入/导出数据文件\n"
-        "5. 双击表格中的记录可以快速填充到输入框");
+        "5. 双击表格中的记录可以快速填充到输入框\n\n"
+        "车牌格式：辽+字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)\n"
+        "示例：辽B7238A、辽A1234B\n\n"
+        "车牌字母对应关系（辽宁省）：\n"
+        "A-沈阳 B-大连 C-鞍山 D-抚顺 E-本溪 F-丹东\n"
+        "G-锦州 H-营口 J-阜新 K-辽阳 L-盘锦\n"
+        "M-铁岭 N-朝阳 P-葫芦岛\n\n"
+        "注意：车牌编号中不能使用字母I和O，避免与数字1和0混淆。");
+}
+
+// 车牌输入变化时的处理：自动填充城市
+void MainWindow::onPlateTextChanged()
+{
+    QString plate = plateEdit->text();
+    
+    // 验证车牌格式
+    std::string plateStr = plate.toStdString();
+    if (!plateStr.empty() && !Utils::isValidPlate(plateStr)) {
+        // 如果输入不符合规范，显示错误提示
+        if (plateStr.length() >= 9) {
+            // 输入已满，显示错误
+            plateEdit->setStyleSheet("background-color: #f8d7da;"); // 红色背景
+            updateStatusBar("车牌格式错误！格式应为：辽+字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)");
+            return;
+        }
+    } else {
+        plateEdit->setStyleSheet(""); // 恢复正常颜色
+    }
+    
+    // 转换为大写（但保留"辽"字）
+    QString upperPlate = plate;
+    if (plate.length() >= 4) {
+        // 保留前3个字节（"辽"字），后面的转换为大写
+        QString prefix = plate.left(3); // "辽"字
+        QString suffix = plate.mid(3).toUpper();
+        upperPlate = prefix + suffix;
+        
+        if (plateEdit->text() != upperPlate) {
+            int cursorPos = plateEdit->cursorPosition();
+            plateEdit->setText(upperPlate);
+            plateEdit->setCursorPosition(cursorPos);
+        }
+    }
+    
+    // 从车牌中提取字母（跳过"辽"字）
+    char plateLetter = Utils::extractPlateLetter(upperPlate.toStdString());
+    
+    if (plateLetter != '\0') {
+        std::string city = Utils::getCityByPlateLetter(plateLetter);
+        if (!city.empty()) {
+            // 如果城市输入框为空，或者当前城市与车牌字母不匹配，则自动填充
+            QString currentCity = cityEdit->text().trimmed();
+            if (currentCity.isEmpty() || !Utils::validatePlateCityMatch(plate.toStdString(), currentCity.toStdString())) {
+                // 使用blockSignals避免触发onCityTextChanged
+                cityEdit->blockSignals(true);
+                cityEdit->setText(QString::fromStdString(city));
+                cityEdit->blockSignals(false);
+                
+                // 如果城市不匹配，改变背景色提示
+                if (!currentCity.isEmpty() && currentCity != QString::fromStdString(city)) {
+                    cityEdit->setStyleSheet("background-color: #fff3cd;"); // 浅黄色提示
+                } else {
+                    cityEdit->setStyleSheet(""); // 恢复正常颜色
+                }
+            }
+        }
+    } else if (plate.isEmpty()) {
+        // 车牌为空时，恢复城市输入框样式
+        cityEdit->setStyleSheet("");
+    }
+}
+
+// 城市输入变化时的处理：验证是否匹配
+void MainWindow::onCityTextChanged()
+{
+    QString plate = plateEdit->text().trimmed();
+    QString city = cityEdit->text().trimmed();
+    
+    if (plate.isEmpty() || city.isEmpty()) {
+        cityEdit->setStyleSheet("");
+        return;
+    }
+    
+    // 验证车牌格式
+    if (!Utils::isValidPlate(plate.toStdString())) {
+        cityEdit->setStyleSheet("background-color: #fff3cd;"); // 黄色：车牌格式错误
+        return;
+    }
+    
+    // 验证车牌字母和城市是否匹配
+    if (Utils::validatePlateCityMatch(plate.toStdString(), city.toStdString())) {
+        cityEdit->setStyleSheet("background-color: #d4edda;"); // 浅绿色表示匹配
+    } else {
+        // 从车牌中提取字母
+        char plateLetter = Utils::extractPlateLetter(plate.toStdString());
+        
+        if (plateLetter != '\0') {
+            std::string expectedCity = Utils::getCityByPlateLetter(plateLetter);
+            if (!expectedCity.empty()) {
+                cityEdit->setStyleSheet("background-color: #f8d7da;"); // 浅红色表示不匹配
+            } else {
+                cityEdit->setStyleSheet("");
+            }
+        } else {
+            cityEdit->setStyleSheet("");
+        }
+    }
 }
 

@@ -148,7 +148,12 @@ public:
     void clearAll();
     
     /**
-     * 获取性能统计
+     * 获取性能统计（返回字符串）
+     */
+    std::string getPerformanceStats() const;
+    
+    /**
+     * 显示性能统计（控制台输出）
      */
     void showPerformanceStats() const;
     
@@ -165,7 +170,12 @@ public:
     std::vector<std::pair<std::string, int>> getCityStatistics() const;
     
     /**
-     * 验证数据完整性
+     * 验证数据完整性（返回验证结果字符串）
+     */
+    std::string getValidateDataResult() const;
+    
+    /**
+     * 验证数据完整性（控制台输出）
      */
     bool validateData() const;
 };

@@ -64,6 +64,10 @@ private slots:
     void onTableSelectionChanged();
     void onTableDoubleClick(int row, int column);
     
+    // 车牌输入相关
+    void onPlateTextChanged();
+    void onCityTextChanged();
+    
     // 菜单
     void onAbout();
     void onHelp();

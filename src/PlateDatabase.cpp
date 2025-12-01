@@ -6,6 +6,9 @@
 #include <iomanip>
 #include <random>
 #include <chrono>
+#include <sstream>
+#include <cmath>
+#include <vector>
 
 PlateDatabase::PlateDatabase() 
     : sortedByPlate(false), cityIndexBuilt(false), 
@@ -116,8 +119,10 @@ void PlateDatabase::generateRandomData(int count) {
     std::uniform_int_distribution<int> cityDist(0, static_cast<int>(cities.size()) - 1);
     
     for (int i = 0; i < count; ++i) {
-        std::string plate = Utils::generateRandomPlate();
+        // 先随机选择一个城市
         std::string city = cities[cityDist(gen)];
+        // 根据城市生成对应的车牌（确保车牌字母与城市匹配）
+        std::string plate = Utils::generateRandomPlateByCity(city);
         std::string owner = "随机车主" + std::to_string(i + 1);
         
         records.emplace_back(plate, city, owner);
@@ -287,21 +292,51 @@ void PlateDatabase::clearAll() {
     std::cout << "已清空所有数据。" << std::endl;
 }
 
-void PlateDatabase::showPerformanceStats() const {
-    std::cout << "\n========== 性能统计 ==========" << std::endl;
-    std::cout << "总操作次数：" << totalOperations << std::endl;
-    std::cout << "总查找次数：" << totalSearches << std::endl;
-    std::cout << "当前记录数：" << records.size() << std::endl;
-    std::cout << "是否已排序：" << (sortedByPlate ? "是" : "否") << std::endl;
-    std::cout << "城市索引已建立：" << (cityIndexBuilt ? "是" : "否") << std::endl;
+std::string PlateDatabase::getPerformanceStats() const {
+    std::ostringstream oss;
+    oss << "========== 性能统计 ==========\n";
+    oss << "总操作次数：" << totalOperations << "\n";
+    oss << "总查找次数：" << totalSearches << "\n";
+    oss << "当前记录数：" << records.size() << "\n";
+    oss << "是否已排序：" << (sortedByPlate ? "是" : "否") << "\n";
+    oss << "城市索引已建立：" << (cityIndexBuilt ? "是" : "否") << "\n";
+    
     if (RadixSort::getLastSortCount() > 0) {
-        std::cout << "上次排序耗时：" << RadixSort::getLastSortTime() << " 毫秒" << std::endl;
+        oss << "\n【排序统计】\n";
+        oss << "上次排序记录数：" << RadixSort::getLastSortCount() << "\n";
+        oss << "上次排序耗时：" << std::fixed << std::setprecision(2) 
+            << RadixSort::getLastSortTime() << " 毫秒\n";
+        if (RadixSort::getLastSortCount() > 0) {
+            double avgTime = RadixSort::getLastSortTime() / RadixSort::getLastSortCount();
+            oss << "平均每条记录耗时：" << std::fixed << std::setprecision(4) << avgTime << " 毫秒\n";
+        }
     }
+    
     if (SearchAlgorithms::getLastSearchCount() > 0) {
-        std::cout << "上次查找比较次数：" << SearchAlgorithms::getLastSearchCount() << std::endl;
-        std::cout << "上次查找耗时：" << SearchAlgorithms::getLastSearchTime() << " 毫秒" << std::endl;
+        oss << "\n【查找统计】\n";
+        oss << "上次查找比较次数：" << SearchAlgorithms::getLastSearchCount() << "\n";
+        oss << "上次查找耗时：" << std::fixed << std::setprecision(2) 
+            << SearchAlgorithms::getLastSearchTime() << " 毫秒\n";
     }
-    std::cout << "=============================" << std::endl;
+    
+    // 计算平均查找时间（如果有查找记录）
+    if (totalSearches > 0 && records.size() > 0) {
+        oss << "\n【性能分析】\n";
+        if (sortedByPlate) {
+            oss << "当前使用折半查找，时间复杂度：O(log n)\n";
+            oss << "理论最大比较次数：" << static_cast<int>(std::ceil(std::log2(records.size()))) << "\n";
+        } else {
+            oss << "当前使用顺序查找，时间复杂度：O(n)\n";
+            oss << "理论平均比较次数：" << records.size() / 2 << "\n";
+        }
+    }
+    
+    oss << "=============================";
+    return oss.str();
+}
+
+void PlateDatabase::showPerformanceStats() const {
+    std::cout << "\n" << getPerformanceStats() << std::endl;
 }
 
 bool PlateDatabase::batchImport(const std::vector<PlateRecord>& newRecords) {
@@ -342,10 +377,97 @@ std::vector<std::pair<std::string, int>> PlateDatabase::getCityStatistics() cons
     return result;
 }
 
-bool PlateDatabase::validateData() const {
+std::string PlateDatabase::getValidateDataResult() const {
+    std::ostringstream oss;
     std::unordered_map<std::string, int> plateCount;
     int invalidCount = 0;
+    std::vector<std::string> invalidPlates;
+    std::vector<std::string> duplicatePlates;
     
+    for (const auto& rec : records) {
+        if (!Utils::isValidPlate(rec.plate)) {
+            invalidCount++;
+            invalidPlates.push_back(rec.plate);
+        }
+        plateCount[rec.plate]++;
+    }
+    
+    int duplicateCount = 0;
+    for (const auto& p : plateCount) {
+        if (p.second > 1) {
+            duplicateCount += p.second - 1;
+            duplicatePlates.push_back(p.first);
+        }
+    }
+    
+    oss << "========== 数据验证结果 ==========\n";
+    oss << "总记录数：" << records.size() << "\n";
+    oss << "有效记录数：" << (records.size() - invalidCount) << "\n";
+    oss << "非法车牌数：" << invalidCount << "\n";
+    oss << "重复车牌数：" << duplicateCount << "\n";
+    
+    bool isValid = (invalidCount == 0 && duplicateCount == 0);
+    oss << "数据完整性：" << (isValid ? "✓ 通过" : "✗ 未通过") << "\n";
+    
+    if (invalidCount > 0) {
+        oss << "\n【非法车牌列表】\n";
+        int showCount = std::min(10, static_cast<int>(invalidPlates.size()));
+        for (int i = 0; i < showCount; ++i) {
+            oss << "  " << invalidPlates[i] << "\n";
+        }
+        if (invalidPlates.size() > 10) {
+            oss << "  ... 还有 " << (invalidPlates.size() - 10) << " 个非法车牌\n";
+        }
+    }
+    
+    if (duplicateCount > 0) {
+        oss << "\n【重复车牌列表】\n";
+        int showCount = std::min(10, static_cast<int>(duplicatePlates.size()));
+        for (int i = 0; i < showCount; ++i) {
+            oss << "  " << duplicatePlates[i] << " (出现 " << plateCount[duplicatePlates[i]] << " 次)\n";
+        }
+        if (duplicatePlates.size() > 10) {
+            oss << "  ... 还有 " << (duplicatePlates.size() - 10) << " 个重复车牌\n";
+        }
+    }
+    
+    // 验证车牌字母与城市匹配
+    int mismatchCount = 0;
+    std::vector<std::string> mismatchPlates;
+    for (const auto& rec : records) {
+        if (Utils::isValidPlate(rec.plate)) {
+            if (!Utils::validatePlateCityMatch(rec.plate, rec.city)) {
+                mismatchCount++;
+                if (mismatchPlates.size() < 10) {
+                    mismatchPlates.push_back(rec.plate + " (城市: " + rec.city + ")");
+                }
+            }
+        }
+    }
+    
+    if (mismatchCount > 0) {
+        oss << "\n【车牌与城市不匹配】\n";
+        oss << "不匹配数量：" << mismatchCount << "\n";
+        for (const auto& plate : mismatchPlates) {
+            oss << "  " << plate << "\n";
+        }
+        if (mismatchCount > 10) {
+            oss << "  ... 还有 " << (mismatchCount - 10) << " 个不匹配记录\n";
+        }
+    } else {
+        oss << "\n【车牌与城市匹配】✓ 全部匹配\n";
+    }
+    
+    oss << "=============================";
+    return oss.str();
+}
+
+bool PlateDatabase::validateData() const {
+    std::string result = getValidateDataResult();
+    std::cout << "\n" << result << std::endl;
+    
+    std::unordered_map<std::string, int> plateCount;
+    int invalidCount = 0;
     for (const auto& rec : records) {
         if (!Utils::isValidPlate(rec.plate)) {
             invalidCount++;
@@ -359,13 +481,6 @@ bool PlateDatabase::validateData() const {
             duplicateCount += p.second - 1;
         }
     }
-    
-    std::cout << "\n========== 数据验证 ==========" << std::endl;
-    std::cout << "总记录数：" << records.size() << std::endl;
-    std::cout << "非法车牌数：" << invalidCount << std::endl;
-    std::cout << "重复车牌数：" << duplicateCount << std::endl;
-    std::cout << "数据完整性：" << (invalidCount == 0 && duplicateCount == 0 ? "通过" : "未通过") << std::endl;
-    std::cout << "=============================" << std::endl;
     
     return invalidCount == 0 && duplicateCount == 0;
 }
