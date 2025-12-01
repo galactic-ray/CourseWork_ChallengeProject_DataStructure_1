@@ -16,6 +16,7 @@ PlateQuerySystem
 *.dll
 *.so
 *.dylib
+obj/
 
 # 构建目录
 build/
