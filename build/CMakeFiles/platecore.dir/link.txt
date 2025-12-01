@@ -1,2 +1,0 @@
-/usr/bin/ar qc libplatecore.a CMakeFiles/platecore.dir/src/FileIO.cpp.o CMakeFiles/platecore.dir/src/PlateDatabase.cpp.o CMakeFiles/platecore.dir/src/RadixSort.cpp.o CMakeFiles/platecore.dir/src/SearchAlgorithms.cpp.o CMakeFiles/platecore.dir/src/UI.cpp.o CMakeFiles/platecore.dir/src/Utils.cpp.o
-/usr/bin/ranlib libplatecore.a

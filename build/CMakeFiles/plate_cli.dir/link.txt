@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/plate_cli.dir/main.cpp.o -o plate_cli  libplatecore.a 

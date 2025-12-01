@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/plate_tests.dir/tests/test.cpp.o -o plate_tests  libplatecore.a 

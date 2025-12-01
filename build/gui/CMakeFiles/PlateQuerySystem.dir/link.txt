@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/PlateQuerySystem.dir/PlateQuerySystem_autogen/mocs_compilation.cpp.o CMakeFiles/PlateQuerySystem.dir/main_gui.cpp.o CMakeFiles/PlateQuerySystem.dir/MainWindow.cpp.o -o ../bin/PlateQuerySystem  /usr/lib/x86_64-linux-gnu/libQt5Widgets.so.5.15.3 ../libplatecore.a /usr/lib/x86_64-linux-gnu/libQt5Gui.so.5.15.3 /usr/lib/x86_64-linux-gnu/libQt5Core.so.5.15.3 
