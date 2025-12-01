@@ -15,10 +15,17 @@ namespace Utils {
     // 将字符串统一转换为大写
     std::string toUpperStr(const std::string& s);
     
-    // 车牌合法性校验：格式为"省份简称+1位字母+5位编号"
-    // 辽宁省格式：辽 + 字母(A-Z,排除I和O) + 5位编号(数字和字母,排除I和O)
-    // 总长度：UTF-8编码下9字节（1汉字3字节+1字母+5字符）
+    // 车牌合法性校验
+    // 燃油车：辽 + 字母(A-Z,排除I和O) + 5位编号(数字和字母,排除I和O)
+    // 新能源车：辽 + 字母(A-Z,排除I和O) + D/F(纯电/插混) + 6位编号(数字和字母,排除I和O)
+    // 目前系统仍以辽宁省为例，因此省份简称固定为“辽”
     bool isValidPlate(const std::string& plate);
+    
+    // 判断是否为新能源车牌（在 isValidPlate 通过的前提下，再区分燃油/新能源）
+    bool isNewEnergyPlate(const std::string& plate);
+    
+    // 根据车牌获取车辆类别："油车" 或 "电车"（无效车牌返回空字符串）
+    std::string getPlateCategory(const std::string& plate);
     
     // 检查字符是否为有效的车牌编号字符（数字或字母，排除I和O）
     bool isValidPlateChar(char c);
@@ -34,6 +41,9 @@ namespace Utils {
     
     // 根据城市生成随机车牌号（车牌字母与城市对应）
     std::string generateRandomPlateByCity(const std::string& city);
+    
+    // 根据城市生成随机新能源车牌号（车牌字母与城市对应，类型为 D/F）
+    std::string generateRandomNewEnergyPlateByCity(const std::string& city);
     
     // 根据车牌字母获取对应城市（辽宁省）
     // 返回城市名，如果字母无效返回空字符串

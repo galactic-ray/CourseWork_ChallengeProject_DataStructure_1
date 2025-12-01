@@ -43,8 +43,8 @@ void MainWindow::setupUI()
     
     inputLayout->addWidget(new QLabel("车牌号:"), 0, 0);
     plateEdit = new QLineEdit(this);
-    plateEdit->setPlaceholderText("例如: 辽B7238A (辽+字母+5位编号,编号不含I和O)");
-    plateEdit->setMaxLength(9); // UTF-8编码：辽(3字节)+字母(1字节)+5字符(5字节)=9字节
+    plateEdit->setPlaceholderText("例如: 燃油车 辽B7238A 或 新能源 辽BDF12345");
+    plateEdit->setMaxLength(12); // 兼容新能源车更长车牌
     inputLayout->addWidget(plateEdit, 0, 1);
     
     inputLayout->addWidget(new QLabel("城市:"), 1, 0);
@@ -143,11 +143,9 @@ void MainWindow::setupUI()
     QVBoxLayout* fileLayout = new QVBoxLayout();
     
     saveFileBtn = new QPushButton("保存到文件", this);
-    exportCSVBtn = new QPushButton("导出CSV", this);
     clearBtn = new QPushButton("清空数据", this);
     
     fileLayout->addWidget(saveFileBtn);
-    fileLayout->addWidget(exportCSVBtn);
     fileLayout->addWidget(clearBtn);
     
     fileGroup->setLayout(fileLayout);
@@ -163,8 +161,8 @@ void MainWindow::setupUI()
     centerLayout->addWidget(tableLabel);
     
     tableWidget = new QTableWidget(this);
-    tableWidget->setColumnCount(3);
-    tableWidget->setHorizontalHeaderLabels(QStringList() << "车牌号" << "城市" << "车主");
+    tableWidget->setColumnCount(4);
+    tableWidget->setHorizontalHeaderLabels(QStringList() << "车牌号" << "城市" << "车主" << "类别");
     tableWidget->horizontalHeader()->setStretchLastSection(true);
     tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -198,7 +196,6 @@ void MainWindow::setupUI()
     connect(perfBtn, &QPushButton::clicked, this, &MainWindow::onPerformanceStats);
     connect(validateBtn, &QPushButton::clicked, this, &MainWindow::onValidateData);
     connect(saveFileBtn, &QPushButton::clicked, this, &MainWindow::onSaveToFile);
-    connect(exportCSVBtn, &QPushButton::clicked, this, &MainWindow::onExportToCSV);
     connect(clearBtn, &QPushButton::clicked, this, &MainWindow::onClearAll);
     connect(tableWidget, &QTableWidget::cellDoubleClicked, this, &MainWindow::onTableDoubleClick);
     connect(tableWidget, &QTableWidget::itemSelectionChanged, this, &MainWindow::onTableSelectionChanged);
@@ -218,13 +215,11 @@ void MainWindow::setupMenuBar()
     QMenu* fileMenu = menuBar->addMenu("文件(&F)");
     QAction* loadAction = fileMenu->addAction("导入文件(&I)");
     QAction* saveAction = fileMenu->addAction("保存文件(&S)");
-    QAction* exportAction = fileMenu->addAction("导出CSV(&E)");
     fileMenu->addSeparator();
     QAction* exitAction = fileMenu->addAction("退出(&X)");
     
     connect(loadAction, &QAction::triggered, this, &MainWindow::onLoadFromFile);
     connect(saveAction, &QAction::triggered, this, &MainWindow::onSaveToFile);
-    connect(exportAction, &QAction::triggered, this, &MainWindow::onExportToCSV);
     connect(exitAction, &QAction::triggered, this, &QWidget::close);
     
     QMenu* editMenu = menuBar->addMenu("编辑(&E)");
@@ -290,6 +285,7 @@ void MainWindow::showRecordInTable(const std::vector<PlateRecord>& records)
         tableWidget->setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::fromStdString(records[i].plate)));
         tableWidget->setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(records[i].city)));
         tableWidget->setItem(static_cast<int>(i), 2, new QTableWidgetItem(QString::fromStdString(records[i].owner)));
+        tableWidget->setItem(static_cast<int>(i), 3, new QTableWidgetItem(QString::fromStdString(records[i].category)));
     }
     
     updateStatusBar(QString("显示 %1 条记录").arg(records.size()));
@@ -322,9 +318,11 @@ void MainWindow::onAddRecord()
         return;
     }
     
-    // 验证车牌格式
+    // 验证车牌格式（支持燃油车与新能源车）
     if (!Utils::isValidPlate(plate.toStdString())) {
-        showMessage("车牌号格式错误！\n格式应为：辽+字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)\n例如：辽B7238A", true);
+        showMessage("车牌号格式错误！\n"
+                    "燃油车示例：辽A12345（辽+地市字母+5位字母/数字）\n"
+                    "新能源示例：辽BDF12345（辽+地市字母+D/F+6位字母/数字）", true);
         plateEdit->setFocus();
         return;
     }
@@ -362,7 +360,11 @@ void MainWindow::onAddRecord()
 
 void MainWindow::onLoadFromFile()
 {
-    QString filename = QFileDialog::getOpenFileName(this, "选择文件", ".", "文本文件 (*.txt);;所有文件 (*)");
+    QString filename = QFileDialog::getOpenFileName(
+        this,
+        "选择文件",
+        ".",
+        "数据文件 (*.txt *.csv);;文本文件 (*.txt);;CSV 文件 (*.csv);;所有文件 (*)");
     if (!filename.isEmpty()) {
         if (database->loadFromFile(filename.toStdString())) {
             showMessage("导入成功！");
@@ -398,9 +400,11 @@ void MainWindow::onModifyRecord()
         return;
     }
     
-    // 验证车牌格式
+    // 验证车牌格式（支持燃油车与新能源车）
     if (!Utils::isValidPlate(plate.toStdString())) {
-        showMessage("车牌号格式错误！格式应为：辽+字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)", true);
+        showMessage("车牌号格式错误！\n"
+                    "燃油车示例：辽A12345（辽+地市字母+5位字母/数字）\n"
+                    "新能源示例：辽BDF12345（辽+地市字母+D/F+6位字母/数字）", true);
         return;
     }
     
@@ -663,24 +667,24 @@ void MainWindow::onValidateData()
 
 void MainWindow::onSaveToFile()
 {
-    QString filename = QFileDialog::getSaveFileName(this, "保存文件", ".", "文本文件 (*.txt);;所有文件 (*)");
+    QString filename = QFileDialog::getSaveFileName(
+        this,
+        "保存数据文件",
+        ".",
+        "数据文件 (*.txt *.csv);;文本文件 (*.txt);;CSV 文件 (*.csv);;所有文件 (*)");
     if (!filename.isEmpty()) {
-        if (database->saveToFile(filename.toStdString())) {
+        QString lower = filename.toLower();
+        bool ok = false;
+        if (lower.endsWith(".csv")) {
+            ok = database->exportToCSV(filename.toStdString());
+        } else {
+            ok = database->saveToFile(filename.toStdString());
+        }
+        
+        if (ok) {
             showMessage("保存成功！");
         } else {
             showMessage("保存失败！", true);
-        }
-    }
-}
-
-void MainWindow::onExportToCSV()
-{
-    QString filename = QFileDialog::getSaveFileName(this, "导出CSV", ".", "CSV文件 (*.csv);;所有文件 (*)");
-    if (!filename.isEmpty()) {
-        if (database->exportToCSV(filename.toStdString())) {
-            showMessage("导出成功！");
-        } else {
-            showMessage("导出失败！", true);
         }
     }
 }
@@ -735,10 +739,12 @@ void MainWindow::onHelp()
         "   - 前缀查找：输入车牌前缀（如：辽B72）进行模糊查找\n"
         "   - 城市查找：选择或输入城市名查找该城市所有车牌\n"
         "3. 排序功能：点击基数排序对车牌进行排序\n"
-        "4. 文件操作：可以导入/导出数据文件\n"
+        "4. 文件操作：可以导入/导出 TXT 与 CSV 数据文件\n"
         "5. 双击表格中的记录可以快速填充到输入框\n\n"
-        "车牌格式：辽+字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)\n"
-        "示例：辽B7238A、辽A1234B\n\n"
+        "车牌格式：\n"
+        "  - 燃油车：辽+地市字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)\n"
+        "  - 新能源：辽+地市字母(A-Z,排除I和O)+D/F(纯电/插混)+6位编号(数字和字母,排除I和O)\n"
+        "示例：燃油车 辽B7238A，新能源 辽BDF12345\n\n"
         "车牌字母对应关系（辽宁省）：\n"
         "A-沈阳 B-大连 C-鞍山 D-抚顺 E-本溪 F-丹东\n"
         "G-锦州 H-营口 J-阜新 K-辽阳 L-盘锦\n"
@@ -751,14 +757,14 @@ void MainWindow::onPlateTextChanged()
 {
     QString plate = plateEdit->text();
     
-    // 验证车牌格式
+    // 验证车牌格式（支持燃油车与新能源车）
     std::string plateStr = plate.toStdString();
     if (!plateStr.empty() && !Utils::isValidPlate(plateStr)) {
         // 如果输入不符合规范，显示错误提示
         if (plateStr.length() >= 9) {
             // 输入已满，显示错误
             plateEdit->setStyleSheet("background-color: #f8d7da;"); // 红色背景
-            updateStatusBar("车牌格式错误！格式应为：辽+字母(A-Z,排除I和O)+5位编号(数字和字母,排除I和O)");
+            updateStatusBar("车牌格式错误！请参考：燃油车“辽A12345”，新能源“辽BDF12345”");
             return;
         }
     } else {
@@ -819,7 +825,7 @@ void MainWindow::onCityTextChanged()
         return;
     }
     
-    // 验证车牌格式
+    // 验证车牌格式（支持燃油车与新能源车）
     if (!Utils::isValidPlate(plate.toStdString())) {
         cityEdit->setStyleSheet("background-color: #fff3cd;"); // 黄色：车牌格式错误
         return;

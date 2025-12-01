@@ -55,7 +55,6 @@ private slots:
     
     // 文件操作
     void onSaveToFile();
-    void onExportToCSV();
     
     // 系统维护
     void onClearAll();
@@ -104,7 +103,6 @@ private:
     QPushButton* clearBtn;
     QPushButton* loadFileBtn;
     QPushButton* saveFileBtn;
-    QPushButton* exportCSVBtn;
     QPushButton* randomBtn;
     QPushButton* statsBtn;
     QPushButton* cityStatsBtn;

@@ -32,6 +32,8 @@ bool PlateDatabase::addRecord(const std::string& plate,
     }
     
     records.emplace_back(upperPlate, city, owner);
+    // 根据车牌确定车辆类别（油车/电车）
+    records.back().category = Utils::getPlateCategory(upperPlate);
     sortedByPlate = false;
     cityIndexBuilt = false;
     totalOperations++;
@@ -117,15 +119,23 @@ void PlateDatabase::generateRandomData(int count) {
     static std::random_device rd;
     static std::mt19937 gen(rd());
     std::uniform_int_distribution<int> cityDist(0, static_cast<int>(cities.size()) - 1);
+    std::uniform_int_distribution<int> typeDist(0, 1); // 0=油车, 1=电车
     
     for (int i = 0; i < count; ++i) {
         // 先随机选择一个城市
         std::string city = cities[cityDist(gen)];
-        // 根据城市生成对应的车牌（确保车牌字母与城市匹配）
-        std::string plate = Utils::generateRandomPlateByCity(city);
+        
+        // 随机决定是油车还是电车
+        bool isNewEnergy = (typeDist(gen) == 1);
+        
+        // 根据城市和类型生成对应的车牌（确保车牌字母与城市匹配）
+        std::string plate = isNewEnergy
+            ? Utils::generateRandomNewEnergyPlateByCity(city)
+            : Utils::generateRandomPlateByCity(city);
         std::string owner = "随机车主" + std::to_string(i + 1);
         
         records.emplace_back(plate, city, owner);
+        records.back().category = isNewEnergy ? "电车" : "油车";
     }
     
     sortedByPlate = false;
@@ -216,11 +226,12 @@ void PlateDatabase::showAllRecords() const {
         return;
     }
     
-    std::cout << "\n" << std::string(50, '=') << std::endl;
+    std::cout << "\n" << std::string(60, '=') << std::endl;
     std::cout << std::left << std::setw(12) << "车牌号"
               << std::left << std::setw(12) << "城市"
-              << std::left << std::setw(15) << "车主" << std::endl;
-    std::cout << std::string(50, '-') << std::endl;
+              << std::left << std::setw(15) << "车主"
+              << std::left << std::setw(8)  << "类别" << std::endl;
+    std::cout << std::string(60, '-') << std::endl;
     
     for (const auto& rec : records) {
         rec.print();
@@ -238,8 +249,9 @@ void PlateDatabase::showRecord(int index) const {
     
     std::cout << std::left << std::setw(12) << "车牌号"
               << std::left << std::setw(12) << "城市"
-              << std::left << std::setw(15) << "车主" << std::endl;
-    std::cout << std::string(50, '-') << std::endl;
+              << std::left << std::setw(15) << "车主"
+              << std::left << std::setw(8)  << "类别" << std::endl;
+    std::cout << std::string(60, '-') << std::endl;
     records[index].print();
 }
 

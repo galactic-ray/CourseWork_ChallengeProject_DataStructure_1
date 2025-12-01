@@ -7,22 +7,24 @@
 
 /**
  * 车牌记录数据结构
- * 包含车牌号、城市、车主信息
+ * 包含车牌号、城市、车主信息、车辆类别（油车/电车）
  */
 struct PlateRecord {
     std::string plate;  // 车牌号，如 "01B7238"
     std::string city;   // 城市，如 "沈阳"
     std::string owner;  // 车主姓名
+    std::string category; // 车辆类别："油车" 或 "电车"
     
     PlateRecord() = default;
     PlateRecord(const std::string& p, const std::string& c, const std::string& o)
-        : plate(p), city(c), owner(o) {}
+        : plate(p), city(c), owner(o), category("") {}
     
     // 打印记录
     void print() const {
         std::cout << std::left << std::setw(12) << plate
                   << std::left << std::setw(12) << city
-                  << std::left << std::setw(15) << owner << std::endl;
+                  << std::left << std::setw(15) << owner
+                  << std::left << std::setw(8)  << category << std::endl;
     }
     
     // 比较操作符（用于排序）
