@@ -84,20 +84,16 @@ cmake --build .
 ```
 
 编译产物位于 `build/`：
-- `bin/plate_cli`      —— CLI 主程序
-- `bin/plate_tests`    —— 测试程序
+- `bin/plate_cli`        —— CLI 主程序
 - `bin/PlateQuerySystem` —— Qt GUI
 
-> **TIP**：若只需 CLI，可在执行 `cmake --build . --target plate_cli` 时仅编译该目标；同理，`plate_tests`、`PlateQuerySystem` 可分别单独构建。
+> **TIP**：若只需 CLI，可在执行 `cmake --build . --target plate_cli` 时仅编译该目标；同理，`PlateQuerySystem` 可分别单独构建。
 
 ### 5.3 运行
 
 ```bash
 # CLI
 ./bin/plate_cli
-
-# 测试
-./bin/plate_tests
 
 # GUI（需 Qt 运行时）
 ./bin/PlateQuerySystem
@@ -150,24 +146,7 @@ GUI 采用 Qt Widgets 架构，主要由左侧操作面板 + 中部表格 + 右�
 
 ---
 
-## 9. 测试
-
-构建后直接运行：
-```bash
-./bin/plate_tests
-```
-
-测试覆盖内容：
-1. 工具函数（车牌格式、大小写转换等）
-2. 链式基数排序正确性
-3. 查找算法（顺序 / 折半 / 前缀）
-4. 数据库 CRUD 与非法数据过滤
-5. 城市分块索引
-6. 性能基准对比
-
----
-
-## 10. 复杂度 & 性能分析
+## 9. 复杂度 & 性能分析
 
 | 操作 | 时间复杂度 | 空间复杂度 | 说明 |
 | ---- | ---------- | ---------- | ---- |
@@ -181,7 +160,7 @@ GUI 采用 Qt Widgets 架构，主要由左侧操作面板 + 中部表格 + 右�
 
 ---
 
-## 11. 注意事项
+## 10. 注意事项
 
 1. **车牌格式**：必须是“辽 + 字母(A-Z, 排除 I/O) + 5 位数字或字母(排除 I/O)”。
 2. **折半查找**：需要先执行链式基数排序。
@@ -191,7 +170,7 @@ GUI 采用 Qt Widgets 架构，主要由左侧操作面板 + 中部表格 + 右�
 
 ---
 
-## 12. 许可证
+## 11. 许可证
 
 本项目仅供教学和课程设计使用，不建议直接用于生产环境。
 
