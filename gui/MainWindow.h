@@ -20,6 +20,7 @@
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
+#include <QStackedLayout>
 #include "../include/PlateDatabase.h"
 
 class MainWindow : public QMainWindow
@@ -70,6 +71,11 @@ private slots:
     // 菜单
     void onAbout();
     void onHelp();
+    
+    // 字体调节
+    void onFontIncrease();
+    void onFontDecrease();
+    void onFontReset();
 
 private:
     void setupUI();
@@ -79,6 +85,8 @@ private:
     void showRecordInTable(const std::vector<PlateRecord>& records);
     void showMessage(const QString& message, bool isError = false);
     void updateStatusBar(const QString& message);
+    void updateActionStates();
+    void applyFontScale(double scale);
     
     // UI组件
     QTableWidget* tableWidget;
@@ -111,6 +119,10 @@ private:
     
     // 数据
     PlateDatabase* database;
+    QLabel* emptyStateLabel;
+    QStackedLayout* stackedLayout;
+    QFont baseFont;
+    double fontScale;
 };
 
 #endif // MAINWINDOW_H

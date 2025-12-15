@@ -16,6 +16,7 @@ set(CMAKE_AUTORCC ON)
 set(GUI_SOURCES
     main_gui.cpp
     MainWindow.cpp
+    resources.qrc
 )
 
 set(GUI_HEADERS

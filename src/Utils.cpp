@@ -30,7 +30,7 @@ namespace Utils {
     bool isValidPlate(const std::string& plate) {
         // 目前仅支持辽宁省车牌：
         // 燃油车：辽 + 字母 + 5位编号  -> UTF-8 总字节数 3 + 1 + 5 = 9
-        // 新能源：辽 + 字母 + D/F + 6位编号 -> UTF-8 总字节数 3 + 1 + 1 + 6 = 11
+        // 新能源：辽 + 字母 + D/F + 5位编号 -> UTF-8 总字节数 3 + 1 + 1 + 5 = 10
         
         // 检查省份简称"辽"（UTF-8编码：0xE8 0xBE 0xBD）
         const unsigned char liao_utf8[] = {0xE8, 0xBE, 0xBD};
@@ -59,8 +59,8 @@ namespace Utils {
             return true;
         }
         
-        // 新能源车：总长度 11 字节
-        if (plate.size() == 11) {
+        // 新能源车：总长度 10 字节
+        if (plate.size() == 10) {
             // 第2段：1位字母（发牌机关代码），不能是I和O
             char letter = plate[3];
             if (letter < 'A' || letter > 'Z' || letter == 'I' || letter == 'O') {
@@ -73,8 +73,8 @@ namespace Utils {
                 return false;
             }
             
-            // 第4段：6位编号，由数字和字母组成，不能有I和O
-            for (size_t i = 5; i < 11; ++i) {
+            // 第4段：5位编号，由数字和字母组成，不能有I和O
+            for (size_t i = 5; i < 10; ++i) {
                 if (!isValidPlateChar(plate[i])) {
                     return false;
                 }
@@ -91,8 +91,8 @@ namespace Utils {
         if (!isValidPlate(plate)) {
             return false;
         }
-        // 新能源车牌长度为 11，且第 5 个字节为 D/F
-        if (plate.size() != 11) {
+        // 新能源车牌长度为 10，且第 5 个字节为 D/F
+        if (plate.size() != 10) {
             return false;
         }
         char energyType = plate[4];
@@ -246,9 +246,9 @@ namespace Utils {
             plateLetter = validLetters[letterDist(gen)];
         }
         
-        // 新能源车牌格式：辽 + 字母 + D/F + 6位编号
+        // 新能源车牌格式：辽 + 字母 + D/F + 5位编号
         std::string plate;
-        plate.resize(11);
+        plate.resize(10);
         
         // 第1段：省份简称"辽"（UTF-8编码）
         plate[0] = static_cast<char>(0xE8);
@@ -261,9 +261,9 @@ namespace Utils {
         // 第3段：能源类型 D/F
         plate[4] = energyDist(gen) == 0 ? 'D' : 'F';
         
-        // 第4段：6位编号，由数字和字母组成，不能有I和O
+        // 第4段：5位编号，由数字和字母组成，不能有I和O
         static std::uniform_int_distribution<int> letterDist(0, static_cast<int>(validLetters.size()) - 1);
-        for (int i = 5; i < 11; ++i) {
+        for (int i = 5; i < 10; ++i) {
             int charType = charTypeDist(gen);
             if (charType == 0) {
                 plate[i] = char('0' + digitDist(gen));
