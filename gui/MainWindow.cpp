@@ -336,11 +336,12 @@ void MainWindow::setupUI()
     centerLayout->addWidget(tableLabel);
     
     tableWidget = new QTableWidget(this);
-    tableWidget->setColumnCount(4);
-    tableWidget->setHorizontalHeaderLabels(QStringList() << "车牌号" << "城市" << "车主" << "类别");
+    tableWidget->setColumnCount(5);
+    tableWidget->setHorizontalHeaderLabels(QStringList() << "序号" << "车牌号" << "城市" << "车主" << "类别");
     tableWidget->horizontalHeader()->setStretchLastSection(true);
     tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     tableWidget->horizontalHeader()->setDefaultSectionSize(130);
+    tableWidget->setColumnWidth(0, 50); // 序号列宽度较小
     tableWidget->horizontalHeader()->setStyleSheet("QHeaderView::section{background:#F2F4F7;font-weight:800;font-size:13.5px;color:#1f2328;}");
     tableWidget->verticalHeader()->setVisible(false);
     tableWidget->verticalHeader()->setDefaultSectionSize(34);
@@ -517,10 +518,13 @@ void MainWindow::showRecordInTable(const std::vector<PlateRecord>& records)
     tableWidget->setRowCount(static_cast<int>(records.size()));
     
     for (size_t i = 0; i < records.size(); ++i) {
-        tableWidget->setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::fromStdString(records[i].plate)));
-        tableWidget->setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(records[i].city)));
-        tableWidget->setItem(static_cast<int>(i), 2, new QTableWidgetItem(QString::fromStdString(records[i].owner)));
-        tableWidget->setItem(static_cast<int>(i), 3, new QTableWidgetItem(QString::fromStdString(records[i].category)));
+        // 序号列（从1开始）
+        tableWidget->setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::number(i + 1)));
+        // 数据列
+        tableWidget->setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(records[i].plate)));
+        tableWidget->setItem(static_cast<int>(i), 2, new QTableWidgetItem(QString::fromStdString(records[i].city)));
+        tableWidget->setItem(static_cast<int>(i), 3, new QTableWidgetItem(QString::fromStdString(records[i].owner)));
+        tableWidget->setItem(static_cast<int>(i), 4, new QTableWidgetItem(QString::fromStdString(records[i].category)));
     }
     
     bool hasData = !records.empty();
@@ -550,10 +554,12 @@ void MainWindow::updateStatusBar(const QString& message)
 void MainWindow::updateActionStates()
 {
     bool hasSelection = tableWidget->selectionModel() && tableWidget->selectionModel()->hasSelection();
+    bool hasData = database->getRecordCount() > 0;
+    
     modifyBtn->setEnabled(hasSelection);
     deleteBtn->setEnabled(hasSelection);
-    statsBtn->setEnabled(hasSelection);
-    cityStatsBtn->setEnabled(hasSelection);
+    statsBtn->setEnabled(hasData);        // 只需要有数据，不需要选中
+    cityStatsBtn->setEnabled(hasData);    // 只需要有数据，不需要选中
 }
 
 void MainWindow::applyFontScale(double scale)
@@ -662,9 +668,19 @@ void MainWindow::onShowAllRecords()
 
 void MainWindow::onModifyRecord()
 {
+    // 检查是否有选中的行
+    QList<QTableWidgetItem*> items = tableWidget->selectedItems();
+    if (items.isEmpty()) {
+        showMessage("请先在表格中选中要修改的记录！", true);
+        return;
+    }
+    
+    int row = items.first()->row();
+    QString originalPlate = tableWidget->item(row, 1)->text();  // 原始车牌号
+    
     QString plate = plateEdit->text().trimmed();
     if (plate.isEmpty()) {
-        showMessage("请输入要修改的车牌号！", true);
+        showMessage("请输入新的车牌号！", true);
         return;
     }
     
@@ -673,12 +689,6 @@ void MainWindow::onModifyRecord()
         showMessage("车牌号格式错误！\n"
                     "燃油车示例：辽A12345（辽+地市字母+5位字母/数字）\n"
                     "新能源示例：辽BDF12345（辽+地市字母+D/F+5位字母/数字）", true);
-        return;
-    }
-    
-    int idx = database->findRecord(plate.toStdString());
-    if (idx == -1) {
-        showMessage("未找到该车牌号！", true);
         return;
     }
     
@@ -708,12 +718,16 @@ void MainWindow::onModifyRecord()
         }
     }
     
-    if (database->modifyRecord(plate.toStdString(), city.toStdString(), owner.toStdString())) {
+    // 先删除原记录，再添加新记录
+    if (database->deleteRecord(originalPlate.toStdString()) && 
+        database->addRecord(plate.toStdString(), city.toStdString(), owner.toStdString())) {
         showMessage("修改成功！");
         plateEdit->clear();
         cityEdit->clear();
         ownerEdit->clear();
         refreshTable();
+    } else {
+        showMessage("修改失败！", true);
     }
 }
 
@@ -878,29 +892,47 @@ void MainWindow::onPrefixSearch()
 
 void MainWindow::onStatistics()
 {
+    if (database->getRecordCount() == 0) {
+        showMessage("当前无记录，无法统计！", true);
+        return;
+    }
+    
     std::ostringstream oss;
     oss << "========== 统计信息 ==========\n";
     oss << "当前共有记录条数：" << database->getRecordCount() << "\n";
     oss << "城市数量：" << database->getCityCount() << "\n";
     oss << "=============================\n";
     
-    infoText->append(QString::fromStdString(oss.str()));
+    QString statsText = QString::fromStdString(oss.str());
+    infoText->append(statsText);
     database->statistics();
+    
+    // 显示弹窗
+    QMessageBox::information(this, "统计信息", statsText);
     updateStatusBar("统计信息已显示");
 }
 
 void MainWindow::onCityStatistics()
 {
+    if (database->getRecordCount() == 0) {
+        showMessage("当前无记录，无法统计！", true);
+        return;
+    }
+    
     auto stats = database->getCityStatistics();
     std::ostringstream oss;
-    oss << "========== 城市统计 ==========\n";
+    oss << "========== 城市统计排序 ==========\n";
     for (const auto& p : stats) {
         oss << p.first << ": " << p.second << " 条\n";
     }
-    oss << "=============================\n";
+    oss << "==================================\n";
     
-    infoText->append(QString::fromStdString(oss.str()));
-    updateStatusBar("城市统计已显示");
+    QString statsText = QString::fromStdString(oss.str());
+    infoText->append(statsText);
+    
+    // 显示弹窗
+    QMessageBox::information(this, "城市统计排序", statsText);
+    updateStatusBar("城市统计排序已显示");
 }
 
 void MainWindow::onPerformanceStats()
@@ -976,9 +1008,9 @@ void MainWindow::onTableSelectionChanged()
     QList<QTableWidgetItem*> items = tableWidget->selectedItems();
     if (!items.isEmpty()) {
         int row = items.first()->row();
-        plateEdit->setText(tableWidget->item(row, 0)->text());
-        cityEdit->setText(tableWidget->item(row, 1)->text());
-        ownerEdit->setText(tableWidget->item(row, 2)->text());
+        plateEdit->setText(tableWidget->item(row, 1)->text());  // 车牌号在第1列
+        cityEdit->setText(tableWidget->item(row, 2)->text());   // 城市在第2列
+        ownerEdit->setText(tableWidget->item(row, 3)->text());  // 车主在第3列
     }
     updateActionStates();
 }
@@ -1001,9 +1033,9 @@ void MainWindow::onFontReset()
 void MainWindow::onTableDoubleClick(int row, int column)
 {
     Q_UNUSED(column);
-    plateEdit->setText(tableWidget->item(row, 0)->text());
-    cityEdit->setText(tableWidget->item(row, 1)->text());
-    ownerEdit->setText(tableWidget->item(row, 2)->text());
+    plateEdit->setText(tableWidget->item(row, 1)->text());  // 车牌号在第1列
+    cityEdit->setText(tableWidget->item(row, 2)->text());   // 城市在第2列
+    ownerEdit->setText(tableWidget->item(row, 3)->text());  // 车主在第3列
 }
 
 void MainWindow::onAbout()
