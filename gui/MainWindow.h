@@ -83,6 +83,7 @@ private:
     void setupStatusBar();
     void refreshTable();
     void showRecordInTable(const std::vector<PlateRecord>& records);
+    void showRecordInTable(const std::vector<PlateRecord>& records, const std::vector<int>& originalIndices);
     void showMessage(const QString& message, bool isError = false);
     void updateStatusBar(const QString& message);
     void updateActionStates();

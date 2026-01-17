@@ -1,7 +1,6 @@
 #include "../include/PlateDatabase.h"
 #include "../include/FileIO.h"
 #include "../include/Utils.h"
-#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <random>
@@ -188,12 +187,24 @@ void PlateDatabase::buildCityIndex() {
         return;
     }
     
-    // 按 city, plate 排序
-    std::sort(records.begin(), records.end(),
-              [](const PlateRecord& a, const PlateRecord& b) {
-                  if (a.city != b.city) return a.city < b.city;
-                  return a.plate < b.plate;
-              });
+    // 按 city, plate 排序（不使用模板排序算法，使用插入排序）
+    for (int x = 1; x < static_cast<int>(records.size()); ++x) {
+        PlateRecord key = records[x];
+        int y = x - 1;
+        while (y >= 0) {
+            // records[y] > key ?
+            bool greater = false;
+            if (records[y].city != key.city) {
+                greater = records[y].city > key.city;
+            } else {
+                greater = records[y].plate > key.plate;
+            }
+            if (!greater) break;
+            records[y + 1] = records[y];
+            --y;
+        }
+        records[y + 1] = key;
+    }
     
     cityIndex.clear();
     int n = static_cast<int>(records.size());
@@ -209,7 +220,16 @@ void PlateDatabase::buildCityIndex() {
         i = j;
     }
     
-    std::sort(cityIndex.begin(), cityIndex.end());
+    // 城市块按城市名排序（不使用模板排序算法，使用插入排序）
+    for (int x = 1; x < static_cast<int>(cityIndex.size()); ++x) {
+        CityBlock key = cityIndex[x];
+        int y = x - 1;
+        while (y >= 0 && cityIndex[y].city > key.city) {
+            cityIndex[y + 1] = cityIndex[y];
+            --y;
+        }
+        cityIndex[y + 1] = key;
+    }
     cityIndexBuilt = true;
     sortedByPlate = false;
     
@@ -380,11 +400,16 @@ std::vector<std::pair<std::string, int>> PlateDatabase::getCityStatistics() cons
         result.emplace_back(p.first, p.second);
     }
     
-    std::sort(result.begin(), result.end(),
-              [](const std::pair<std::string, int>& a,
-                 const std::pair<std::string, int>& b) {
-                  return a.second > b.second; // 按数量降序
-              });
+    // 按数量降序排序（不使用模板排序算法，使用插入排序）
+    for (int x = 1; x < static_cast<int>(result.size()); ++x) {
+        std::pair<std::string, int> key = result[x];
+        int y = x - 1;
+        while (y >= 0 && result[y].second < key.second) {
+            result[y + 1] = result[y];
+            --y;
+        }
+        result[y + 1] = key;
+    }
     
     return result;
 }

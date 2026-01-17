@@ -34,7 +34,7 @@ void MainWindow::setupUI()
     setStyleSheet(R"(
         QWidget {
             font-family: "Microsoft YaHei", "Source Han Sans", "PingFang SC", sans-serif;
-            font-size: 15px;
+            font-size: 20px;
             color: #1f2328;
         }
         QMainWindow {
@@ -54,7 +54,7 @@ void MainWindow::setupUI()
             background: #eef1f6;
             color: #1f4b99;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 17px;
         }
         QLabel {
             color: #2d3748;
@@ -141,14 +141,18 @@ void MainWindow::setupUI()
             border: 1px solid #c8d2e3;
             border-radius: 10px;
         }
+        QTableWidget::item {
+            padding: 8px;
+        }
         QHeaderView::section {
             background: #eef2f7;
             padding: 8px;
             border: none;
             border-right: 1px solid #d0d7de;
             font-weight: 800;
-            font-size: 14px;
+            font-size: 17px;
             color: #1f2328;
+            text-align: center;
         }
         QStatusBar {
             background: #f6f8fa;
@@ -332,18 +336,18 @@ void MainWindow::setupUI()
     centerLayout->setContentsMargins(0,0,0,0);
     
     QLabel* tableLabel = new QLabel("车牌记录列表", this);
-    tableLabel->setStyleSheet("font-size: 15px; font-weight: bold; color:#1f4b99;");
+    tableLabel->setStyleSheet("font-size: 18px; font-weight: bold; color:#1f4b99;");
     centerLayout->addWidget(tableLabel);
     
     tableWidget = new QTableWidget(this);
-    tableWidget->setColumnCount(4);
-    tableWidget->setHorizontalHeaderLabels(QStringList() << "车牌号" << "城市" << "车主" << "类别");
+    tableWidget->setColumnCount(5);
+    tableWidget->setHorizontalHeaderLabels(QStringList() << "序号" << "车牌号" << "城市" << "车主" << "类别");
     tableWidget->horizontalHeader()->setStretchLastSection(true);
     tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     tableWidget->horizontalHeader()->setDefaultSectionSize(130);
-    tableWidget->horizontalHeader()->setStyleSheet("QHeaderView::section{background:#F2F4F7;font-weight:800;font-size:13.5px;color:#1f2328;}");
+    tableWidget->horizontalHeader()->setStyleSheet("QHeaderView::section{background:#F2F4F7;font-weight:800;font-size:17px;color:#1f2328;}");
     tableWidget->verticalHeader()->setVisible(false);
-    tableWidget->verticalHeader()->setDefaultSectionSize(34);
+    tableWidget->verticalHeader()->setDefaultSectionSize(70);  // 从56px增加到70px，适应更大的字体
     tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -353,7 +357,7 @@ void MainWindow::setupUI()
     
     emptyStateLabel = new QLabel("暂无车辆数据\n请在左侧添加记录或导入文件", this);
     emptyStateLabel->setAlignment(Qt::AlignCenter);
-    emptyStateLabel->setStyleSheet("color:#8a94a6; font-size:14px;");
+    emptyStateLabel->setStyleSheet("color:#8a94a6; font-size:17px;");
     emptyStateLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
     
     // 使用叠加布局让空状态覆盖表格
@@ -375,14 +379,14 @@ void MainWindow::setupUI()
     QVBoxLayout* rightLayout = new QVBoxLayout();
     
     QLabel* infoLabel = new QLabel("系统日志", this);
-    infoLabel->setStyleSheet("font-size: 14px; font-weight: bold; color:#4a5568;");
+    infoLabel->setStyleSheet("font-size: 17px; font-weight: bold; color:#4a5568;");
     rightLayout->addWidget(infoLabel);
     
     infoText = new QTextEdit(this);
     infoText->setReadOnly(true);
     infoText->setMaximumWidth(240);
     infoText->setMinimumWidth(200);
-    infoText->setStyleSheet("background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; font-size:12px; color:#4a5568;");
+    infoText->setStyleSheet("background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; font-size:15px; color:#4a5568;");
     rightLayout->addWidget(infoText);
     
     // 连接信号和槽
@@ -517,10 +521,71 @@ void MainWindow::showRecordInTable(const std::vector<PlateRecord>& records)
     tableWidget->setRowCount(static_cast<int>(records.size()));
     
     for (size_t i = 0; i < records.size(); ++i) {
-        tableWidget->setItem(static_cast<int>(i), 0, new QTableWidgetItem(QString::fromStdString(records[i].plate)));
-        tableWidget->setItem(static_cast<int>(i), 1, new QTableWidgetItem(QString::fromStdString(records[i].city)));
-        tableWidget->setItem(static_cast<int>(i), 2, new QTableWidgetItem(QString::fromStdString(records[i].owner)));
-        tableWidget->setItem(static_cast<int>(i), 3, new QTableWidgetItem(QString::fromStdString(records[i].category)));
+        // 序号列（从1开始）
+        QTableWidgetItem* indexItem = new QTableWidgetItem(QString::number(i + 1));
+        indexItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 0, indexItem);
+
+        // 车牌号列
+        QTableWidgetItem* plateItem = new QTableWidgetItem(QString::fromStdString(records[i].plate));
+        plateItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 1, plateItem);
+
+        // 城市列
+        QTableWidgetItem* cityItem = new QTableWidgetItem(QString::fromStdString(records[i].city));
+        cityItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 2, cityItem);
+
+        // 车主列
+        QTableWidgetItem* ownerItem = new QTableWidgetItem(QString::fromStdString(records[i].owner));
+        ownerItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 3, ownerItem);
+
+        // 类别列
+        QTableWidgetItem* categoryItem = new QTableWidgetItem(QString::fromStdString(records[i].category));
+        categoryItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 4, categoryItem);
+    }
+
+    bool hasData = !records.empty();
+    emptyStateLabel->setVisible(!hasData);
+    if (stackedLayout) {
+        stackedLayout->setCurrentIndex(hasData ? 0 : 1);
+    }
+    updateActionStates();
+    updateStatusBar(QString("显示 %1 条记录").arg(records.size()));
+}
+
+void MainWindow::showRecordInTable(const std::vector<PlateRecord>& records, const std::vector<int>& originalIndices)
+{
+    tableWidget->setRowCount(0);
+    tableWidget->setRowCount(static_cast<int>(records.size()));
+
+    for (size_t i = 0; i < records.size(); ++i) {
+        int displayIndex = static_cast<int>(i) + 1;
+        if (i < originalIndices.size() && originalIndices[i] >= 0) {
+            displayIndex = originalIndices[i] + 1; // originalIndices 为0-based，这里显示为1-based
+        }
+
+        QTableWidgetItem* indexItem = new QTableWidgetItem(QString::number(displayIndex));
+        indexItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 0, indexItem);
+
+        QTableWidgetItem* plateItem = new QTableWidgetItem(QString::fromStdString(records[i].plate));
+        plateItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 1, plateItem);
+
+        QTableWidgetItem* cityItem = new QTableWidgetItem(QString::fromStdString(records[i].city));
+        cityItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 2, cityItem);
+
+        QTableWidgetItem* ownerItem = new QTableWidgetItem(QString::fromStdString(records[i].owner));
+        ownerItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 3, ownerItem);
+
+        QTableWidgetItem* categoryItem = new QTableWidgetItem(QString::fromStdString(records[i].category));
+        categoryItem->setTextAlignment(Qt::AlignCenter);
+        tableWidget->setItem(static_cast<int>(i), 4, categoryItem);
     }
     
     bool hasData = !records.empty();
@@ -558,17 +623,50 @@ void MainWindow::updateActionStates()
 
 void MainWindow::applyFontScale(double scale)
 {
-    // 限制缩放范围
-    if (scale < 0.8) scale = 0.8;
-    if (scale > 1.4) scale = 1.4;
-    fontScale = scale;
-    
+    // 兼容旧逻辑：把 scale 映射成字号变化（每 0.1 视为 +2pt）
+    // 实际字号以 pointSize 为准：A+ 每次 +2，A- 每次 -2，A 重置。
+    double deltaSteps = (scale - 1.0) / 0.1;
+    int deltaPt = static_cast<int>(deltaSteps * 2.0);
+
+    int basePt = baseFont.pointSize();
+    if (basePt <= 0) {
+        basePt = 15; // fallback
+    }
+
+    int newPt = basePt + deltaPt;
+    if (newPt < 10) newPt = 10;
+    if (newPt > 40) newPt = 40;
+
+    // 反推保存 fontScale（用于状态保持）
+    fontScale = 1.0 + (static_cast<double>(newPt - basePt) / 2.0) * 0.1;
+
     QFont f = baseFont;
-    f.setPointSizeF(baseFont.pointSizeF() * fontScale);
+    f.setPointSize(newPt);
     QApplication::setFont(f);
-    
-    // 调整表格行高
-    tableWidget->verticalHeader()->setDefaultSectionSize(static_cast<int>(34 * fontScale));
+
+    // 强制给表格与表头设置字体（确保显示文字大小真正变化）
+    QFont tableFont = f;
+    tableFont.setPointSize(newPt + 4); // 表格比全局稍大
+    tableWidget->setFont(tableFont);
+    if (tableWidget->horizontalHeader()) {
+        tableWidget->horizontalHeader()->setFont(tableFont);
+    }
+
+    // 关键：已存在的 QTableWidgetItem 可能缓存了字体，逐个刷新字体
+    for (int r = 0; r < tableWidget->rowCount(); ++r) {
+        for (int c = 0; c < tableWidget->columnCount(); ++c) {
+            QTableWidgetItem* it = tableWidget->item(r, c);
+            if (it) {
+                it->setFont(tableFont);
+            }
+        }
+    }
+
+    // 让视图/代理重新布局和重绘
+    tableWidget->viewport()->update();
+
+    // 调整表格行高/列宽（跟随字号变化，避免截断）
+    tableWidget->verticalHeader()->setDefaultSectionSize(static_cast<int>(34 * fontScale + 20));
     tableWidget->horizontalHeader()->setDefaultSectionSize(static_cast<int>(130 * fontScale));
 }
 
@@ -767,12 +865,18 @@ void MainWindow::onBinarySearch()
     
     int idx = database->binarySearchPlate(plate.toStdString());
     if (idx != -1) {
-        // 高亮显示找到的记录
-        refreshTable();
-        tableWidget->selectRow(idx);
-        tableWidget->scrollToItem(tableWidget->item(idx, 0));
+        // 只显示找到的记录
+        auto allRecords = database->getAllRecords();
+        if (idx >= 0 && idx < static_cast<int>(allRecords.size())) {
+            std::vector<PlateRecord> foundRecord;
+            foundRecord.push_back(allRecords[idx]);
+            showRecordInTable(foundRecord, std::vector<int>{idx});
+            tableWidget->selectRow(0);
         showMessage(QString("找到记录，位于第 %1 行").arg(idx + 1));
+        }
     } else {
+        // 未找到时清空表格
+        tableWidget->setRowCount(0);
         showMessage("未找到该车牌！", true);
     }
 }
@@ -858,6 +962,8 @@ void MainWindow::onPrefixSearch()
     
     auto results = database->prefixSearch(prefix.toStdString());
     if (results.empty()) {
+        // 未找到时清空表格
+        tableWidget->setRowCount(0);
         showMessage(QString("未找到以 %1 为前缀的车牌\n\n提示：\n"
                           "请检查输入的前缀是否正确。\n"
                           "前缀必须以\"辽\"开头，后面可以跟字母(A-Z,排除I和O)和数字。\n\n"
@@ -976,9 +1082,9 @@ void MainWindow::onTableSelectionChanged()
     QList<QTableWidgetItem*> items = tableWidget->selectedItems();
     if (!items.isEmpty()) {
         int row = items.first()->row();
-        plateEdit->setText(tableWidget->item(row, 0)->text());
-        cityEdit->setText(tableWidget->item(row, 1)->text());
-        ownerEdit->setText(tableWidget->item(row, 2)->text());
+        plateEdit->setText(tableWidget->item(row, 1)->text());  // 车牌号在第1列
+        cityEdit->setText(tableWidget->item(row, 2)->text());   // 城市在第2列
+        ownerEdit->setText(tableWidget->item(row, 3)->text());  // 车主在第3列
     }
     updateActionStates();
 }
@@ -1001,9 +1107,9 @@ void MainWindow::onFontReset()
 void MainWindow::onTableDoubleClick(int row, int column)
 {
     Q_UNUSED(column);
-    plateEdit->setText(tableWidget->item(row, 0)->text());
-    cityEdit->setText(tableWidget->item(row, 1)->text());
-    ownerEdit->setText(tableWidget->item(row, 2)->text());
+    plateEdit->setText(tableWidget->item(row, 1)->text());  // 车牌号在第1列
+    cityEdit->setText(tableWidget->item(row, 2)->text());    // 城市在第2列
+    ownerEdit->setText(tableWidget->item(row, 3)->text());   // 车主在第3列
 }
 
 void MainWindow::onAbout()
